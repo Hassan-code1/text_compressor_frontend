@@ -2,12 +2,17 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
-import { 
-  FileText, Sparkles, Download, RefreshCw, ArrowRight, Code, 
-  CheckCircle, File, FileType, X, Mail, Linkedin, User 
+import {
+  FileText, Sparkles, Download, RefreshCw, ArrowRight, Code,
+  CheckCircle, File, FileType, X, Mail, Linkedin, User
 } from 'lucide-react';
 import LetterGlitch from './components/LetterGlitch';
 import SplashCursor from './components/SplashCursor';
+import TreeVisualizer from './components/TreeVisualizer';
+import EntropyDashboard from './components/EntropyDashboard';
+import TreeAnimation from './components/TreeAnimation';
+import BitStreamViewer from './components/BitStreamViewer';
+import BenchmarkPanel from './components/BenchmarkPanel';
 
 // --- CONFIGURATION ---
 // This automatically picks up the URL from your .env file
@@ -20,7 +25,7 @@ const AnimatedTitle = ({ text, className }) => {
 
   useGSAP(() => {
     const tl = gsap.timeline({ onComplete: () => setAnimationComplete(true) });
-    tl.fromTo('.anim-char', 
+    tl.fromTo('.anim-char',
       { y: 50, opacity: 0, rotateX: -90, filter: 'blur(10px)' },
       { y: 0, opacity: 1, rotateX: 0, filter: 'blur(0px)', stagger: 0.05, duration: 0.8, ease: 'back.out(1.7)' }
     );
@@ -110,13 +115,15 @@ const renderByte = (key) => {
 
 function App() {
   const [file, setFile] = useState(null);
-  const [inputText, setInputText] = useState(""); 
+  const [inputText, setInputText] = useState("");
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [mode, setMode] = useState(true);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isCursorOn, setCursorOn] = useState(false);
+  const [activeTab, setActiveTab] = useState('stats');
+  const [useRle, setUseRle] = useState(false);
   const isBinaryFile = file && !file.name.endsWith('.txt') && !file.name.endsWith('.huff') && !file.name.endsWith('.bin');
 
   const handleUpload = async () => {
@@ -136,6 +143,7 @@ function App() {
       const blob = new Blob([inputText], { type: "text/plain" });
       formData.append("file", blob, "manual_input.txt");
     }
+    if (useRle) formData.append("rle", "true");
 
     // --- UPDATED: Uses API_URL Variable ---
     const endpoint = mode ? `${API_URL}/compress` : `${API_URL}/decompress`;
@@ -146,14 +154,22 @@ function App() {
       });
 
       const data = response.data;
-      if (data.stats) setStats(data.stats);
-      
+      if (data.stats) {
+        setStats(data.stats);
+        setActiveTab('stats');
+      }
+
       // --- UPDATED: Uses API_URL Variable ---
       if (data.downloadLink) setDownloadUrl(`${API_URL}${data.downloadLink}`);
-      
+
     } catch (error) {
       console.error("Error:", error);
-      alert("An error occurred. Please check the backend connection.");
+      const msg =
+        error.response?.data?.error ||
+        error.response?.data?.details ||
+        error.message ||
+        "Unknown error. Please check the backend connection.";
+      alert(`Error: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -165,6 +181,8 @@ function App() {
     setFile(null);
     setInputText("");
     setDownloadUrl("");
+    setActiveTab('stats');
+    setUseRle(false);
   };
 
   return (
@@ -185,19 +203,18 @@ function App() {
       />
 
       <div className="relative z-10 container mx-auto px-4 py-12 max-w-6xl">
-        <div className="absolute top- right-6 z-50">
+        <div className="absolute top-6 right-6 z-50">
           <button
             onClick={() => setCursorOn(!isCursorOn)}
-            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all duration-300 ${
-              isCursorOn
-                ? "bg-black/80 border-[#24E0F5]/40 text-white shadow-[0_0_10px_rgba(36,224,245,0.3)]"
-                : "bg-white/15 border-white/10 text-gray-500 hover:text-white hover:bg-black/90 hover:border-white/30"
-            }`}
+            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all duration-300 ${isCursorOn
+              ? "bg-black/80 border-[#24E0F5]/40 text-white shadow-[0_0_10px_rgba(36,224,245,0.3)]"
+              : "bg-white/15 border-white/10 text-gray-500 hover:text-white hover:bg-black/90 hover:border-white/30"
+              }`}
           >
             {isCursorOn ? "Disable Effects" : "Enable Effects"}
           </button>
         </div>
-        
+
         {/* HEADER */}
         <header className="flex justify-center mb-12 animate-fade-in">
           <div className="relative backdrop-blur-md bg-black/60 border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl max-w-3xl text-center">
@@ -225,23 +242,20 @@ function App() {
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
               <div className="flex bg-black/40 p-1.5 rounded-xl border border-white/10 relative">
                 <div
-                  className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-[#24E0F5]/10 border border-[#24E0F5]/30 rounded-lg transition-all duration-300 ${
-                    mode ? "left-1.5" : "left-[calc(50%+4px)]"
-                  }`}
+                  className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-[#24E0F5]/10 border border-[#24E0F5]/30 rounded-lg transition-all duration-300 ${mode ? "left-1.5" : "left-[calc(50%+4px)]"
+                    }`}
                 ></div>
                 <button
                   onClick={() => switchMode(true)}
-                  className={`relative z-10 px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ${
-                    mode ? "text-[#24E0F5]" : "text-gray-400 hover:text-white"
-                  }`}
+                  className={`relative z-10 px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ${mode ? "text-[#24E0F5]" : "text-gray-400 hover:text-white"
+                    }`}
                 >
                   Compress
                 </button>
                 <button
                   onClick={() => switchMode(false)}
-                  className={`relative z-10 px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ${
-                    !mode ? "text-[#24E0F5]" : "text-gray-400 hover:text-white"
-                  }`}
+                  className={`relative z-10 px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ${!mode ? "text-[#24E0F5]" : "text-gray-400 hover:text-white"
+                    }`}
                 >
                   Decompress
                 </button>
@@ -249,9 +263,8 @@ function App() {
               <button
                 onClick={handleUpload}
                 disabled={loading}
-                className={`group relative px-8 py-3 bg-[#24E0F5] text-black font-bold rounded-xl overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(36,224,245,0.4)] hover:shadow-[0_0_30px_rgba(36,224,245,0.6)] ${
-                  loading ? "opacity-70 cursor-wait" : ""
-                }`}
+                className={`group relative px-8 py-3 bg-[#24E0F5] text-black font-bold rounded-xl overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(36,224,245,0.4)] hover:shadow-[0_0_30px_rgba(36,224,245,0.6)] ${loading ? "opacity-70 cursor-wait" : ""
+                  }`}
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                 <span className="relative flex items-center gap-2">
@@ -263,11 +276,28 @@ function App() {
                   {loading
                     ? "Processing..."
                     : mode
-                    ? "Compress Now"
-                    : "Decompress Now"}
+                      ? "Compress Now"
+                      : "Decompress Now"}
                 </span>
               </button>
             </div>
+
+            {/* RLE toggle — compress mode only */}
+            {mode && (
+              <div className="flex items-center justify-end mb-2 gap-3">
+                <button
+                  onClick={() => setUseRle(r => !r)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 ${useRle
+                    ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400'
+                    : 'bg-white/5 border-white/10 text-gray-500 hover:text-white'
+                    }`}
+                >
+                  <span className={`w-2 h-2 rounded-full transition-colors ${useRle ? 'bg-yellow-400' : 'bg-gray-600'}`} />
+                  RLE Pre-processor {useRle ? 'ON' : 'OFF'}
+                </button>
+                <span className="text-xs text-gray-600">Best for repetitive data (BMP, logs)</span>
+              </div>
+            )}
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-[#24E0F5]/20 to-purple-500/20 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 blur"></div>
               <div className="relative bg-black/40 rounded-2xl border border-white/10 overflow-hidden">
@@ -324,93 +354,146 @@ function App() {
         {mode && stats && stats.originalSize !== undefined && (
           <div className="flex justify-center mb-12 animate-fade-in-up">
             <div className="w-full max-w-4xl relative backdrop-blur-md bg-black/80 border border-[#24E0F5]/30 rounded-3xl p-8 shadow-[0_0_50px_rgba(36,224,245,0.15)]">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <span className="w-1 h-8 bg-[#24E0F5] rounded-full shadow-[0_0_10px_#24E0F5]"></span>
-                Compression Analysis
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center">
-                  <div className="text-gray-400 text-sm mb-1 uppercase tracking-wider">
-                    Original Size
-                  </div>
-                  <div className="text-3xl font-bold text-white">
-                    {stats.originalSize}{" "}
-                    <span className="text-sm font-normal text-gray-500">
-                      bytes
-                    </span>
-                  </div>
-                </div>
-                <div className="p-6 rounded-2xl bg-[#24E0F5]/10 border border-[#24E0F5]/30 text-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[#24E0F5]/5 animate-pulse"></div>
-                  <div className="relative z-10">
-                    <div className="text-[#24E0F5] text-sm mb-1 uppercase tracking-wider font-bold">
-                      Compressed Size
-                    </div>
-                    <div className="text-3xl font-bold text-white">
-                      {stats.compressedSize}{" "}
-                      <span className="text-sm font-normal text-gray-500">
-                        bytes
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center">
-                  <div className="text-gray-400 text-sm mb-1 uppercase tracking-wider">
-                    Reduction
-                  </div>
-                  <div className="text-3xl font-bold text-[#24E0F5]">
-                    {stats.originalSize > 0
-                      ? (
-                          (1 - stats.compressedSize / stats.originalSize) *
-                          100
-                        ).toFixed(1)
-                      : 0}
-                    %
-                  </div>
-                </div>
+
+              {/* Tab Bar */}
+              <div className="flex gap-1 mb-8 bg-black/40 p-1.5 rounded-xl border border-white/10 overflow-x-auto">
+                {[
+                  { id: 'stats', label: '📊 Stats' },
+                  { id: 'tree', label: '🌳 Tree' },
+                  { id: 'entropy', label: '📐 Entropy' },
+                  { id: 'anim', label: '🎬 Animation' },
+                  { id: 'bits', label: '⚙️ Bit Stream' },
+                  { id: 'bench', label: '📈 Benchmark' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${activeTab === tab.id
+                      ? 'bg-[#24E0F5]/10 border border-[#24E0F5]/30 text-[#24E0F5]'
+                      : 'text-gray-400 hover:text-white'
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              {downloadUrl && (
-                <div className="flex justify-center mb-10">
-                  <a
-                    href={downloadUrl}
-                    download
-                    className="flex items-center gap-3 px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all hover:scale-105 shadow-lg"
-                  >
-                    <Download className="w-5 h-5" />
-                    Download Compressed File
-                  </a>
-                </div>
+              {/* Stats Tab */}
+              {activeTab === 'stats' && (
+                <>
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="w-1 h-8 bg-[#24E0F5] rounded-full shadow-[0_0_10px_#24E0F5]"></span>
+                    Compression Analysis
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center">
+                      <div className="text-gray-400 text-sm mb-1 uppercase tracking-wider">Original Size</div>
+                      <div className="text-3xl font-bold text-white">
+                        {stats.originalSize} <span className="text-sm font-normal text-gray-500">bytes</span>
+                      </div>
+                    </div>
+                    <div className="p-6 rounded-2xl bg-[#24E0F5]/10 border border-[#24E0F5]/30 text-center relative overflow-hidden">
+                      <div className="absolute inset-0 bg-[#24E0F5]/5 animate-pulse"></div>
+                      <div className="relative z-10">
+                        <div className="text-[#24E0F5] text-sm mb-1 uppercase tracking-wider font-bold">Compressed Size</div>
+                        <div className="text-3xl font-bold text-white">
+                          {stats.compressedSize} <span className="text-sm font-normal text-gray-500">bytes</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center">
+                      <div className="text-gray-400 text-sm mb-1 uppercase tracking-wider">Reduction</div>
+                      <div className="text-3xl font-bold text-[#24E0F5]">
+                        {stats.originalSize > 0 ? ((1 - stats.compressedSize / stats.originalSize) * 100).toFixed(1) : 0}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {downloadUrl && (
+                    <div className="flex justify-center mb-10">
+                      <a href={downloadUrl} download
+                        className="flex items-center gap-3 px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all hover:scale-105 shadow-lg">
+                        <Download className="w-5 h-5" />
+                        Download Compressed File
+                      </a>
+                    </div>
+                  )}
+
+                  {stats.codes && (
+                    <div className="mt-8 border-t border-white/10 pt-8">
+                      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Code className="w-5 h-5 text-[#24E0F5]" />
+                        Huffman Dictionary
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                        {Object.entries(stats.codes).slice(0, 256).map(([key, code]) => (
+                          <div key={key} className="flex justify-between items-center bg-white/5 border border-white/5 rounded-lg px-3 py-2 text-sm hover:border-[#24E0F5]/50 transition-colors">
+                            <span className="font-mono text-[#24E0F5] font-bold">{renderByte(key)}</span>
+                            <ArrowRight className="w-3 h-3 text-gray-600" />
+                            <span className="font-mono text-gray-300 ml-2 truncate">{code}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* --- RESTORED: HUFFMAN DICTIONARY --- */}
-              {stats.codes && (
-                <div className="mt-8 border-t border-white/10 pt-8">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Code className="w-5 h-5 text-[#24E0F5]" />
-                    Huffman Dictionary (Visualization)
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-                    {/* We limit to top 256 for performance, though usually less */}
-                    {Object.entries(stats.codes)
-                      .slice(0, 256)
-                      .map(([key, code]) => (
-                        <div
-                          key={key}
-                          className="flex justify-between items-center bg-white/5 border border-white/5 rounded-lg px-3 py-2 text-sm hover:border-[#24E0F5]/50 transition-colors"
-                        >
-                          <span className="font-mono text-[#24E0F5] font-bold">
-                            {renderByte(key)}
-                          </span>
-                          <ArrowRight className="w-3 h-3 text-gray-600" />
-                          <span className="font-mono text-gray-300 ml-2 truncate">
-                            {code}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
+              {/* Tree Tab */}
+              {activeTab === 'tree' && (
+                <>
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="w-1 h-8 bg-[#24E0F5] rounded-full shadow-[0_0_10px_#24E0F5]"></span>
+                    Huffman Tree Visualizer
+                  </h2>
+                  <TreeVisualizer treeData={stats.tree} codes={stats.codes} />
+                </>
               )}
+
+              {/* Entropy Tab */}
+              {activeTab === 'entropy' && (
+                <>
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="w-1 h-8 bg-purple-400 rounded-full shadow-[0_0_10px_rgba(192,132,252,0.8)]"></span>
+                    Entropy & Efficiency
+                  </h2>
+                  <EntropyDashboard stats={stats} />
+                </>
+              )}
+
+              {/* Animation Tab */}
+              {activeTab === 'anim' && (
+                <>
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="w-1 h-8 bg-yellow-400 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.8)]"></span>
+                    Tree Construction
+                  </h2>
+                  <TreeAnimation steps={stats.steps} />
+                </>
+              )}
+
+              {/* Bit Stream Tab */}
+              {activeTab === 'bits' && (
+                <>
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="w-1 h-8 bg-green-400 rounded-full shadow-[0_0_10px_rgba(74,222,128,0.8)]"></span>
+                    Bit-Stream Preview
+                  </h2>
+                  <BitStreamViewer bitPreview={stats.bitPreview} />
+                </>
+              )}
+
+              {/* Benchmark Tab */}
+              {activeTab === 'bench' && (
+                <>
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="w-1 h-8 bg-green-400 rounded-full shadow-[0_0_10px_rgba(74,222,128,0.8)]"></span>
+                    Compression Benchmark
+                  </h2>
+                  <BenchmarkPanel stats={stats} />
+                </>
+              )}
+
             </div>
           </div>
         )}
